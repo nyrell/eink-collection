@@ -1,5 +1,6 @@
 from PIL import Image, ImageDraw, ImageFont
 import math
+import colorsys
 
 # 16 Grayscale colors
 grayscale = [
@@ -20,7 +21,13 @@ schemes = [
 def generate_png(scheme_name, values):
     colors = [f"#{r}{g}{b}" for r in values for g in values for b in values]
     all_colors = list(set(grayscale + colors))
-    all_colors.sort()
+
+    # Sort by HSV for gradual hue changes
+    def hsv_key(color):
+        r, g, b = int(color[1:3], 16)/255, int(color[3:5], 16)/255, int(color[5:7], 16)/255
+        return colorsys.rgb_to_hsv(r, g, b)
+    all_colors.sort(key=hsv_key)
+
     n = len(all_colors)
 
     # Fixed image size
@@ -42,13 +49,17 @@ def generate_png(scheme_name, values):
     img = Image.new('RGB', (img_width, img_height), color='white')
     draw = ImageDraw.Draw(img)
 
-    # Draw main grid
+    # Draw main grid with serpentine order for smoother transitions
     font_size = min(20, rect_height // 3)
     font = ImageFont.truetype("arial.ttf", font_size)  # Adjust path
 
     for i, color in enumerate(all_colors):
-        x = (i % cols) * rect_width
-        y = (i // cols) * rect_height
+        row = i // cols
+        col = i % cols
+        if row % 2 == 1:  # Reverse direction for odd rows
+            col = cols - 1 - col
+        x = col * rect_width
+        y = row * rect_height
         draw.rectangle((x, y, x + rect_width, y + rect_height), fill=color)
         r, g, b = int(color[1:3], 16), int(color[3:5], 16), int(color[5:7], 16)
         luminance = r*0.299 + g*0.587 + b*0.114
